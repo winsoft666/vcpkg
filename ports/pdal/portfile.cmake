@@ -7,16 +7,17 @@ vcpkg_from_github(
     #[[
         Attention: pdal-dimbuilder must be updated together with pdal
     #]]
-    SHA512 1f9c4383fdbd4e10ef0b30b7148386692f8bd5f19b57a0323d92f2dc55a14fbc6a0d4d60c16c9604cbd3837c0ae8e3c88baebdefd534273952f92f01c5703554
+    SHA512 7ed8300bf700abf79314aa3f9867d05a0ae077e4a8d4940a19f91c89869cfe2dfbe0d1ba5679d8457e64adcf1f924dec46686d022bfd6046657ab829795059a7
     HEAD_REF master
     PATCHES
         dependencies.diff
         external-dimbuilder.diff
         find-library-suffix.diff
         no-rpath.patch
+        rapidxml.diff
 )
 file(REMOVE_RECURSE
-    "${SOURCE_PATH}/cmake/modules/FindCURL.cmake"
+    "${SOURCE_PATH}/cmake/modules/FindCurl.cmake"
     "${SOURCE_PATH}/cmake/modules/FindGeoTIFF.cmake"
     "${SOURCE_PATH}/cmake/modules/FindICONV.cmake"
     "${SOURCE_PATH}/cmake/modules/FindZSTD.cmake"
@@ -27,6 +28,8 @@ file(REMOVE_RECURSE
     "${SOURCE_PATH}/vendor/schema-validator"
     "${SOURCE_PATH}/vendor/utfcpp"
 )
+# PDAL includes "h3api.h", and some calls are decorated with PDALH3
+file(COPY "${CURRENT_PORT_DIR}/h3api.h" DESTINATION "${SOURCE_PATH}")
 # PDAL uses namespace 'NL' for nlohmann
 file(COPY "${CURRENT_INSTALLED_DIR}/include/nlohmann" DESTINATION "${SOURCE_PATH}/vendor/nlohmann/")
 file(APPEND "${SOURCE_PATH}/vendor/nlohmann/nlohmann/json.hpp" "\nnamespace NL = nlohmann;\n")
@@ -34,6 +37,8 @@ file(APPEND "${SOURCE_PATH}/vendor/nlohmann/nlohmann/json_fwd.hpp" "\nnamespace 
 file(WRITE "${SOURCE_PATH}/pdal/JsonFwd.hpp" "/* vcpkg redacted */\n#include <nlohmann/json_fwd.hpp>\nnamespace NL = nlohmann;\n")
 file(MAKE_DIRECTORY "${SOURCE_PATH}/vendor/nlohmann/schema-validator")
 file(WRITE "${SOURCE_PATH}/vendor/nlohmann/schema-validator/json-schema.hpp" "/* vcpkg redacted */\n#include <nlohmann/json-schema.hpp>\n")
+# PDAL vendors arbiter vendors rapidxml
+file(COPY "${CURRENT_INSTALLED_DIR}/include/rapidxml/rapidxml.hpp" DESTINATION "${SOURCE_PATH}/vendor/arbiter/")
 
 unset(ENV{OSGEO4W_HOME})
 
@@ -44,6 +49,7 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         hdf5        BUILD_PLUGIN_HDF
         lzma        WITH_LZMA
         pgpointcloud BUILD_PLUGIN_PGPOINTCLOUD
+        spz         BUILD_PLUGIN_SPZ
         zstd        WITH_ZSTD
 )
 

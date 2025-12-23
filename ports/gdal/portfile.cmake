@@ -2,12 +2,13 @@ vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO OSGeo/gdal
     REF "v${VERSION}"
-    SHA512 4e0431c9bb9b7c54508afdcaa936445eee8878aa47f404e2ff00c8ce786c1dd58247c2cee76cb0e0e26cef04419d7c6c4884f2d9078e9d292c4a1c720deae3ed
+    SHA512 088bff580287dca4ce9a1d97c11008e30394fab42a7ec697a79a02214837c4b8a1dc4541bf47d1fe7a987db4369a8894eab4e76a7cd82b371db54d71b678881e
     HEAD_REF master
     PATCHES
         find-link-libraries.patch
         fix-gdal-target-interfaces.patch
         libkml.patch
+        sqlite3.diff
         target-is-valid.patch
 )
 # `vcpkg clean` stumbles over one subdir
@@ -22,6 +23,8 @@ vcpkg_replace_string("${SOURCE_PATH}/ogr/ogrsf_frmts/flatgeobuf/flatbuffers/base
 # "core" is used for a dependency which must be enabled to avoid vendored lib.
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
     FEATURES
+        arrow            GDAL_USE_ARROW
+        arrow-adbc       GDAL_USE_ADBCDRIVERMANAGER
         archive          GDAL_USE_ARCHIVE
         cfitsio          GDAL_USE_CFITSIO
         curl             GDAL_USE_CURL
@@ -44,6 +47,7 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         odbc             GDAL_USE_ODBC
         openjpeg         GDAL_USE_OPENJPEG
         openssl          GDAL_USE_OPENSSL
+        parquet          GDAL_USE_PARQUET
         pcre2            GDAL_USE_PCRE2
         png              GDAL_USE_PNG
         poppler          GDAL_USE_POPPLER
@@ -66,7 +70,7 @@ if(GDAL_USE_ICONV AND VCPKG_TARGET_IS_WINDOWS)
 endif()
 
 # Compatibility with older Android versions https://github.com/OSGeo/gdal/pull/5941
-if(VCPKG_TARGET_IS_ANDROID AND ANRDOID_PLATFORM VERSION_LESS 24 AND (VCPKG_TARGET_ARCHITECTURE STREQUAL "x86" OR VCPKG_TARGET_ARCHITECTURE STREQUAL "arm"))
+if(VCPKG_TARGET_IS_ANDROID AND ANDROID_PLATFORM VERSION_LESS 24 AND (VCPKG_TARGET_ARCHITECTURE STREQUAL "x86" OR VCPKG_TARGET_ARCHITECTURE STREQUAL "arm"))
     list(APPEND FEATURE_OPTIONS -DBUILD_WITHOUT_64BIT_OFFSET=ON)
 endif()
 
@@ -84,7 +88,6 @@ vcpkg_cmake_configure(
         -DCMAKE_DISABLE_FIND_PACKAGE_Java=ON
         -DCMAKE_DISABLE_FIND_PACKAGE_JNI=ON
         -DCMAKE_DISABLE_FIND_PACKAGE_SWIG=ON
-        -DCMAKE_DISABLE_FIND_PACKAGE_Arrow=ON
         -DGDAL_USE_INTERNAL_LIBS=OFF
         -DGDAL_USE_EXTERNAL_LIBS=OFF
         -DGDAL_BUILD_OPTIONAL_DRIVERS=ON
@@ -119,6 +122,7 @@ list(APPEND CMAKE_PROGRAM_PATH \"\${vcpkg_host_prefix}/tools/pkgconf\")"
 if (BUILD_APPS)
     vcpkg_copy_tools(
         TOOL_NAMES
+            gdal
             gdal_contour
             gdal_create
             gdal_footprint

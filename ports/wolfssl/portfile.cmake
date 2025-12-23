@@ -2,7 +2,7 @@ vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO wolfssl/wolfssl
     REF "v${VERSION}-stable"
-    SHA512 ad6a8c8635d7d3355cb4fb70dac31d405976312864f383e83597b3653fb6cde614a4f6427ebe76015fc0eade9741cb9ac4a9bc9d8fa55d97939052c0f7246114
+    SHA512 6f191c218b270bd4dc90d6f07a80416e6bc8d049f3f49ea84c38a2af40ae9588a4fe306860fbb8696c5af15c4ca359818e3955069389d33269eee0101c270439
     HEAD_REF master
     PATCHES
     )
@@ -49,6 +49,8 @@ vcpkg_cmake_configure(
       -DWOLFSSL_OCSPSTAPLING_V2=yes
       -DWOLFSSL_CRL=yes
       -DWOLFSSL_DES3=yes
+      -DWOLFSSL_HPKE=yes
+      -DWOLFSSL_SNI=yes
       -DWOLFSSL_ASIO=${ENABLE_ASIO}
       -DWOLFSSL_DTLS=${ENABLE_DTLS}
       -DWOLFSSL_DTLS13=${ENABLE_DTLS}
@@ -63,11 +65,17 @@ vcpkg_cmake_configure(
 
 vcpkg_cmake_install()
 vcpkg_copy_pdbs()
-
-file(INSTALL "${SOURCE_PATH}/COPYING" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}" RENAME copyright)
-
 vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/wolfssl)
+
+if(VCPKG_TARGET_IS_IOS OR VCPKG_TARGET_IS_OSX)
+    vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/lib/pkgconfig/wolfssl.pc" "Libs.private: " "Libs.private: -framework CoreFoundation -framework Security ")
+    if(NOT VCPKG_BUILD_TYPE)
+        vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/wolfssl.pc" "Libs.private: " "Libs.private: -framework CoreFoundation -framework Security ")
+    endif()
+endif()
 vcpkg_fixup_pkgconfig()
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/share")
+
+vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/COPYING")

@@ -1,17 +1,28 @@
+set(PATCHES
+    fix-dependencies.patch
+    fix-static-ffmpeg.patch
+    imath-version-guard.patch
+    fix-openimageio_include_dir.patch
+    fix-openexr-target-missing.patch
+)
+
+if(VCPKG_TARGET_IS_OSX)
+    execute_process(COMMAND xcrun --show-sdk-version
+            OUTPUT_VARIABLE OSX_SDK_VERSION
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(${OSX_SDK_VERSION} VERSION_GREATER_EQUAL 26)
+        # macOS 26 Tahoe has removed AGL APIs https://bugreports.qt.io/browse/QTBUG-137687
+        list(APPEND PATCHES remove-agl-framework.patch)
+    endif()
+endif()
+
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO AcademySoftwareFoundation/OpenImageIO
     REF "v${VERSION}"
-    SHA512 1e24d7ffc3ad65a1fe1f53ae59006de912c0a8d85827d64671fab95350977e22e2d147cf26ffe362646c768747ec11e6f9aeae04ea66030f82ad597adf3135a5
+    SHA512 cee6ddfbd825022a45a46b041c894a18718a474a32da8715fe08f918c7387505e81f3220c0ad79d3ec160b9c224bdeafbbb8a2b67a47cd845dca492582607c22
     HEAD_REF master
-    PATCHES
-        fix-dependencies.patch
-        fix-static-ffmpeg.patch
-        fix-openexr-dll.patch
-        imath-version-guard.patch
-        fix-openimageio_include_dir.patch
-        fix-openexr-target-missing.patch
-        fix-dependency-libraw.patch
+    PATCHES ${PATCHES}
 )
 
 file(REMOVE_RECURSE "${SOURCE_PATH}/ext")
@@ -26,6 +37,7 @@ file(REMOVE
     "${SOURCE_PATH}/src/cmake/modules/FindWebP.cmake"
     "${SOURCE_PATH}/src/cmake/modules/Findfmt.cmake"
     "${SOURCE_PATH}/src/cmake/modules/FindTBB.cmake"
+    "${SOURCE_PATH}/src/cmake/modules/FindJXL.cmake"
 )
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
@@ -35,6 +47,7 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         ffmpeg      USE_FFMPEG
         freetype    USE_FREETYPE
         gif         USE_GIF
+        jpegxl      USE_JXL
         opencv      USE_OPENCV
         openjpeg    USE_OPENJPEG
         webp        USE_WEBP
@@ -43,6 +56,11 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         tools       OIIO_BUILD_TOOLS
         viewer      ENABLE_IV
 )
+
+if("pybind11" IN_LIST FEATURES)
+    vcpkg_get_vcpkg_installed_python(PYTHON3)
+    list(APPEND FEATURE_OPTIONS "-DPython3_EXECUTABLE=${PYTHON3}")
+endif()
 
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
@@ -57,7 +75,7 @@ vcpkg_cmake_configure(
         -DUSE_TBB=OFF
         -DLINKSTATIC=OFF # LINKSTATIC breaks library lookup
         -DBUILD_MISSING_FMT=OFF
-        -DINTERNALIZE_FMT=OFF  # carry fmt's msvc utf8 usage requirements
+        -DOIIO_INTERNALIZE_FMT=OFF  # carry fmt's msvc utf8 usage requirements
         -DBUILD_MISSING_ROBINMAP=OFF
         -DBUILD_MISSING_DEPS=OFF
         -DSTOP_ON_WARNING=OFF
@@ -70,9 +88,15 @@ vcpkg_cmake_configure(
     MAYBE_UNUSED_VARIABLES
         ENABLE_INSTALL_testtex
         ENABLE_IV
+        BUILD_MISSING_DEPS
+        BUILD_MISSING_FMT
+        BUILD_MISSING_ROBINMAP
+        REQUIRED_DEPS
 )
 
 vcpkg_cmake_install()
+
+vcpkg_copy_pdbs()
 
 vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/OpenImageIO)
 
